@@ -50,7 +50,7 @@ T3|x|dv0003 `internal/index` + `internal/scan` + `internal/cache`; `BenchmarkSca
 T4|x|dv0004 `internal/dql` lexer + parser → AST, golden parse tests|V1
 T5|x|dv0005 `internal/exec` + `dataview query` one-shot CLI → JSON|V1,V10,I.cmd
 T6|x|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
-T7|.|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua
+T7|x|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua
 T8|.|dv0008 `render/float` + `pickers/*` adapters, jump-to-note|V12
 T9|.|dv0009 distribution: goreleaser (darwin/linux/windows × amd64/arm64, CGO off, `-s -w`), `install.lua`, `health.lua`, README lazy.nvim spec|V15,I.health
 T10|.|dv0010 perf CI: synthetic 10k vault, assert budgets, fail on >20% regress|V5,V6

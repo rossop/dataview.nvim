@@ -7,8 +7,9 @@ vet:
 test:
     go test ./...
 
-nvim-test:
-    nvim --headless -u NONE -l tests/smoke.lua
+# Headless Neovim specs; e2e specs drive the freshly built binary.
+nvim-test: build
+    nvim --headless -u NONE -l tests/run.lua
 
 build:
     go build -o bin/dataview ./cmd/dataview
