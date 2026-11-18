@@ -1,0 +1,1 @@
+TABLE status, due, priority FROM "Projects" SORT due DESC

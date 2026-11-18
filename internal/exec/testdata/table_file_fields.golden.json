@@ -1,0 +1,62 @@
+{
+  "kind": "table",
+  "columns": [
+    "Name",
+    "Folder",
+    "Tags",
+    "Tasks",
+    "Day"
+  ],
+  "rows": [
+    {
+      "path": "Areas/Reading.md",
+      "cells": [
+        "Reading",
+        "Areas",
+        "#book/nonfiction",
+        "1",
+        "-"
+      ]
+    },
+    {
+      "path": "Broken.md",
+      "cells": [
+        "Broken",
+        "",
+        "",
+        "0",
+        "-"
+      ]
+    },
+    {
+      "path": "Journal/2026-11-14.md",
+      "cells": [
+        "2026-11-14",
+        "Journal",
+        "#journal",
+        "1",
+        "November 14, 2026"
+      ]
+    },
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Alpha",
+        "Projects",
+        "#project, #work/research, #focus",
+        "2",
+        "-"
+      ]
+    },
+    {
+      "path": "Projects/Beta.md",
+      "cells": [
+        "Beta",
+        "Projects",
+        "#project",
+        "1",
+        "-"
+      ]
+    }
+  ]
+}

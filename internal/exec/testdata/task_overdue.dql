@@ -1,0 +1,1 @@
+TASK WHERE !completed AND due < date(today)

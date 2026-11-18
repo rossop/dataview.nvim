@@ -1,0 +1,1 @@
+TABLE up.status AS "Parent status", up FROM "Journal"

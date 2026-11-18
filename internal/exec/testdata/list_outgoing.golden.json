@@ -1,0 +1,17 @@
+{
+  "kind": "list",
+  "rows": [
+    {
+      "path": "Areas/Reading.md",
+      "cells": [
+        "Reading"
+      ]
+    },
+    {
+      "path": "Projects/Beta.md",
+      "cells": [
+        "Beta"
+      ]
+    }
+  ]
+}
