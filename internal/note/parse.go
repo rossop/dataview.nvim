@@ -40,11 +40,10 @@ func Parse(relPath string, src []byte) (*Note, []string) {
 	bodyStart := 0
 	if fm, end, ok := splitFrontmatter(lines); ok {
 		bodyStart = end
-		var raw map[string]any
-		if err := yaml.Unmarshal([]byte(fm), &raw); err != nil {
+		if fields, err := parseFrontmatter(fm); err != nil {
 			warns = append(warns, fmt.Sprintf("%s: invalid frontmatter ignored: %v", relPath, firstLine(err.Error())))
-		} else if raw != nil {
-			n.Frontmatter = normalize(raw).(map[string]any)
+		} else {
+			n.Frontmatter = fields
 			n.addFrontmatterMeta()
 		}
 	}
@@ -69,6 +68,30 @@ func Parse(relPath string, src []byte) (*Note, []string) {
 		n.scanLine(i, stripCode(line))
 	}
 	return n, warns
+}
+
+// parseFrontmatter decodes via yaml.Node so keys keep their file order.
+func parseFrontmatter(src string) (Fields, error) {
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(src), &doc); err != nil {
+		return nil, err
+	}
+	if len(doc.Content) == 0 {
+		return nil, nil
+	}
+	m := doc.Content[0]
+	if m.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("frontmatter is not a mapping")
+	}
+	out := make(Fields, 0, len(m.Content)/2)
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		var v any
+		if err := m.Content[i+1].Decode(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, Field{m.Content[i].Value, normalize(v)})
+	}
+	return out, nil
 }
 
 func splitFrontmatter(lines []string) (string, int, bool) {
@@ -100,6 +123,8 @@ func stripCode(line string) string {
 	})
 }
 
+// scanLine collects metadata from one body line. Stored strings are cloned so
+// a note never pins its source text, whatever the line came from (§V.4).
 func (n *Note) scanLine(lineNo int, line string) {
 	tags := extractTags(line)
 	links := n.extractLinks(line)
@@ -108,20 +133,20 @@ func (n *Note) scanLine(lineNo int, line string) {
 	n.Tags = appendUnique(n.Tags, tags...)
 	n.Links = append(n.Links, links...)
 	for _, f := range fields {
-		n.Fields = addField(n.Fields, f.key, f.value)
+		n.Fields = n.Fields.add(f.key, f.value)
 	}
 
 	if m := taskRe.FindStringSubmatch(line); m != nil {
 		t := Task{
 			Line:      lineNo,
-			Status:    m[1],
+			Status:    strings.Clone(m[1]),
 			Completed: m[1] == "x" || m[1] == "X",
-			Text:      strings.TrimSpace(m[2]),
+			Text:      strings.Clone(strings.TrimSpace(m[2])),
 			Tags:      tags,
 			Links:     links,
 		}
 		for _, f := range fields {
-			t.Fields = addField(t.Fields, f.key, f.value)
+			t.Fields = t.Fields.add(f.key, f.value)
 		}
 		n.Tasks = append(n.Tasks, t)
 	}
@@ -136,7 +161,7 @@ func extractFields(line string) []field {
 	var out []field
 	for _, re := range []*regexp.Regexp{squareFieldRe, parenFieldRe} {
 		for _, m := range re.FindAllStringSubmatch(line, -1) {
-			out = append(out, field{strings.TrimSpace(m[1]), ParseValue(m[2])})
+			out = append(out, field{strings.Clone(strings.TrimSpace(m[1])), ParseValue(m[2])})
 		}
 	}
 	if len(out) > 0 {
@@ -147,29 +172,10 @@ func extractFields(line string) []field {
 		return nil
 	}
 	if m := lineFieldRe.FindStringSubmatch(line); m != nil {
-		out = append(out, field{strings.TrimSpace(m[1]), ParseValue(m[2])})
+		out = append(out, field{strings.Clone(strings.TrimSpace(m[1])), ParseValue(m[2])})
 	}
 	return out
 }
-
-// addField stores a value; a repeated key turns into a list, as in Dataview.
-func addField(m map[string]any, key string, v any) map[string]any {
-	if m == nil {
-		m = map[string]any{}
-	}
-	prev, ok := m[key]
-	switch {
-	case !ok:
-		m[key] = v
-	case isList(prev):
-		m[key] = append(prev.([]any), v)
-	default:
-		m[key] = []any{prev, v}
-	}
-	return m
-}
-
-func isList(v any) bool { _, ok := v.([]any); return ok }
 
 func extractTags(line string) []string {
 	var out []string
@@ -179,7 +185,7 @@ func extractTags(line string) []string {
 		if tag == "" || digitsRe.MatchString(tag) {
 			continue
 		}
-		out = appendUnique(out, "#"+tag)
+		out = appendUnique(out, "#"+tag) // concatenation copies, so the body is not retained
 	}
 	return out
 }
@@ -201,9 +207,9 @@ func newWikiLink(inner string, embed bool) Link {
 	target, display, _ := strings.Cut(inner, "|")
 	target, sub, _ := strings.Cut(target, "#")
 	return Link{
-		Path:    strings.TrimSuffix(strings.TrimSpace(target), ".md"),
-		Subpath: strings.TrimSpace(sub),
-		Display: strings.TrimSpace(display),
+		Path:    strings.Clone(strings.TrimSuffix(strings.TrimSpace(target), ".md")),
+		Subpath: strings.Clone(strings.TrimSpace(sub)),
+		Display: strings.Clone(strings.TrimSpace(display)),
 		Embed:   embed,
 	}
 }
@@ -225,13 +231,14 @@ func (n *Note) mdLink(target, display string, embed bool) (Link, bool) {
 	if strings.HasPrefix(p, "../") {
 		return Link{}, false
 	}
-	return Link{Path: p, Subpath: sub, Display: display, Embed: embed}, true
+	return Link{Path: strings.Clone(p), Subpath: strings.Clone(sub), Display: strings.Clone(display), Embed: embed}, true
 }
 
 // addFrontmatterMeta pulls tags, aliases and links out of frontmatter.
 func (n *Note) addFrontmatterMeta() {
 	for _, key := range []string{"tags", "tag"} {
-		for _, t := range stringList(n.Frontmatter[key]) {
+		v, _ := n.Frontmatter.Get(key)
+		for _, t := range stringList(v) {
 			t = strings.TrimPrefix(strings.TrimSpace(t), "#")
 			if t != "" {
 				n.Tags = appendUnique(n.Tags, "#"+t)
@@ -239,9 +246,12 @@ func (n *Note) addFrontmatterMeta() {
 		}
 	}
 	for _, key := range []string{"aliases", "alias"} {
-		n.Aliases = append(n.Aliases, stringList(n.Frontmatter[key])...)
+		v, _ := n.Frontmatter.Get(key)
+		n.Aliases = append(n.Aliases, stringList(v)...)
 	}
-	n.Links = append(n.Links, collectLinks(n.Frontmatter)...)
+	for _, f := range n.Frontmatter {
+		n.Links = append(n.Links, collectLinks(f.Value)...)
+	}
 }
 
 // stringList accepts YAML lists or comma/space separated strings.

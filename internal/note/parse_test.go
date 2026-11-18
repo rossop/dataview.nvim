@@ -14,6 +14,25 @@ func date(s string) time.Time {
 	return t
 }
 
+func get(fs Fields, k string) any {
+	v, _ := fs.Get(k)
+	return v
+}
+
+func TestFieldsOrderAndCanonical(t *testing.T) {
+	n, _ := Parse("a.md", []byte("---\nzeta: 1\nAlpha Key: 2\n---\n"))
+	if n.Frontmatter[0].Key != "zeta" || n.Frontmatter[1].Key != "Alpha Key" {
+		t.Errorf("order lost: %v", n.Frontmatter)
+	}
+	if get(n.Frontmatter, "alpha-key") != 2.0 {
+		t.Errorf("canonical lookup failed")
+	}
+	b, err := n.Frontmatter.MarshalJSON()
+	if err != nil || string(b) != `{"zeta":1,"Alpha Key":2}` {
+		t.Errorf("json = %s, %v", b, err)
+	}
+}
+
 func TestParseValue(t *testing.T) {
 	cases := []struct {
 		in   string
@@ -52,12 +71,12 @@ func TestInlineFields(t *testing.T) {
 	if len(warns) != 0 {
 		t.Fatalf("unexpected warnings: %v", warns)
 	}
-	want := map[string]any{
-		"Owner":  "Peter",
-		"Status": "open",
-		"rating": 4.0,
-		"mood":   "good",
-		"repeat": []any{"a", "b"},
+	want := Fields{
+		{"Owner", "Peter"},
+		{"Status", "open"},
+		{"rating", 4.0},
+		{"mood", "good"},
+		{"repeat", []any{"a", "b"}},
 	}
 	if !reflect.DeepEqual(n.Fields, want) {
 		t.Errorf("Fields = %#v\nwant %#v", n.Fields, want)
@@ -98,7 +117,7 @@ func TestTasks(t *testing.T) {
 	if first.Line != 1 || first.Completed || first.Status != " " || first.Text != "open #t [due:: 2026-11-30]" {
 		t.Errorf("task 0 = %#v", first)
 	}
-	if !reflect.DeepEqual(first.Tags, []string{"#t"}) || !reflect.DeepEqual(first.Fields, map[string]any{"due": date("2026-11-30")}) {
+	if !reflect.DeepEqual(first.Tags, []string{"#t"}) || !reflect.DeepEqual(first.Fields, Fields{{"due", date("2026-11-30")}}) {
 		t.Errorf("task 0 meta = %v %v", first.Tags, first.Fields)
 	}
 	if !n.Tasks[1].Completed || n.Tasks[1].Line != 2 {
@@ -108,7 +127,7 @@ func TestTasks(t *testing.T) {
 		t.Errorf("task 2 = %#v", n.Tasks[2])
 	}
 	// Task-line fields also surface on the page, as in Dataview.
-	if n.Fields["due"] == nil {
+	if get(n.Fields, "due") == nil {
 		t.Errorf("page fields missing task field: %v", n.Fields)
 	}
 }
@@ -128,11 +147,11 @@ func TestFrontmatter(t *testing.T) {
 	if len(warns) != 0 {
 		t.Fatalf("warnings: %v", warns)
 	}
-	if n.Frontmatter["count"] != 3.0 || n.Frontmatter["title"] != "X" {
+	if get(n.Frontmatter, "count") != 3.0 || get(n.Frontmatter, "title") != "X" {
 		t.Errorf("scalars: %#v", n.Frontmatter)
 	}
-	if !reflect.DeepEqual(n.Frontmatter["due"], date("2026-12-01")) {
-		t.Errorf("due = %#v", n.Frontmatter["due"])
+	if !reflect.DeepEqual(get(n.Frontmatter, "due"), date("2026-12-01")) {
+		t.Errorf("due = %#v", get(n.Frontmatter, "due"))
 	}
 	if !reflect.DeepEqual(n.Tags, []string{"#a", "#b/c"}) || !reflect.DeepEqual(n.Aliases, []string{"one"}) {
 		t.Errorf("tags=%v aliases=%v", n.Tags, n.Aliases)
@@ -141,7 +160,7 @@ func TestFrontmatter(t *testing.T) {
 		t.Errorf("frontmatter links = %#v", n.Links)
 	}
 	// The second --- block is body text, so "not:: frontmatter" style data must not appear.
-	if _, ok := n.Frontmatter["not"]; ok {
+	if _, ok := n.Frontmatter.Get("not"); ok {
 		t.Error("second block parsed as frontmatter")
 	}
 }
@@ -189,7 +208,7 @@ func TestFixtureVault(t *testing.T) {
 	}
 
 	alpha := read("Projects/Alpha.md")
-	if alpha.Frontmatter["status"] != "active" || alpha.Fields["priority"] != 1.0 || alpha.Fields["Owner"] != "Peter" {
+	if get(alpha.Frontmatter, "status") != "active" || get(alpha.Fields, "priority") != 1.0 || get(alpha.Fields, "Owner") != "Peter" {
 		t.Errorf("alpha fm=%v fields=%v", alpha.Frontmatter, alpha.Fields)
 	}
 	if !reflect.DeepEqual(alpha.Tags, []string{"#project", "#work/research", "#focus"}) {
@@ -206,7 +225,7 @@ func TestFixtureVault(t *testing.T) {
 	}
 
 	reading := read("Areas/Reading.md")
-	if reading.Frontmatter != nil || reading.Fields["rating"] != 4.0 || !reflect.DeepEqual(reading.Tags, []string{"#book/nonfiction"}) {
+	if reading.Frontmatter != nil || get(reading.Fields, "rating") != 4.0 || !reflect.DeepEqual(reading.Tags, []string{"#book/nonfiction"}) {
 		t.Errorf("reading = %#v", reading)
 	}
 

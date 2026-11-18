@@ -20,26 +20,26 @@ type Link struct {
 }
 
 type Task struct {
-	Line      int            `json:"line"` // 0-based, like Dataview
-	Text      string         `json:"text"`
-	Status    string         `json:"status"`
-	Completed bool           `json:"completed"`
-	Tags      []string       `json:"tags,omitempty"`
-	Links     []Link         `json:"links,omitempty"`
-	Fields    map[string]any `json:"fields,omitempty"`
+	Line      int      `json:"line"` // 0-based, like Dataview
+	Text      string   `json:"text"`
+	Status    string   `json:"status"`
+	Completed bool     `json:"completed"`
+	Tags      []string `json:"tags,omitempty"`
+	Links     []Link   `json:"links,omitempty"`
+	Fields    Fields   `json:"fields,omitempty"`
 }
 
-// Note is everything the index keeps about one file. Values in Frontmatter and
-// Fields are normalised to: nil, bool, float64, string, time.Time, Link,
-// []any, map[string]any.
+// Note is everything the index keeps about one file. Field values are
+// normalised to: nil, bool, float64, string, time.Time, Link, []any,
+// map[string]any.
 type Note struct {
 	Path        string // vault-relative, forward slashes, with .md
 	Size        int64
 	MTime       time.Time
 	CTime       time.Time
-	Frontmatter map[string]any
-	Fields      map[string]any // inline fields, including those on task lines
-	Tags        []string       // explicit tags, "#" prefixed, deduped, in order
+	Frontmatter Fields
+	Fields      Fields   // inline fields, including those on task lines
+	Tags        []string // explicit tags, "#" prefixed, deduped, in order
 	Aliases     []string
 	Links       []Link
 	Tasks       []Task
@@ -48,6 +48,11 @@ type Note struct {
 // Name is the file name without extension, as Dataview's file.name.
 func (n *Note) Name() string {
 	return strings.TrimSuffix(path.Base(n.Path), path.Ext(n.Path))
+}
+
+// Canonical is Dataview's normalised field key: lowercase, spaces → dashes.
+func Canonical(key string) string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(key), " ", "-"))
 }
 
 // Folder is the vault-relative parent folder, "" for the vault root.
