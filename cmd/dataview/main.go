@@ -1,5 +1,6 @@
 // Command dataview runs Dataview (DQL) queries over an Obsidian vault.
 //
+//	dataview serve                               JSON-RPC 2.0 on stdin/stdout (used by Neovim)
 //	dataview query --vault <dir> --dql <query>   one-shot, JSON on stdout
 //	dataview version
 package main
@@ -17,6 +18,7 @@ import (
 	"github.com/rossop/dataview.nvim/internal/dql"
 	"github.com/rossop/dataview.nvim/internal/exec"
 	"github.com/rossop/dataview.nvim/internal/index"
+	"github.com/rossop/dataview.nvim/internal/rpc"
 	"github.com/rossop/dataview.nvim/internal/scan"
 )
 
@@ -36,15 +38,22 @@ func main() {
 	if os.Getenv("GOMEMLIMIT") == "" {
 		debug.SetMemoryLimit(24 << 20)
 	}
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		usage(stderr)
 		return exitUsage
 	}
 	switch args[0] {
+	case "serve":
+		srv := &rpc.Server{Version: version, Log: stderr, UseCache: true}
+		if err := srv.Serve(stdin, stdout); err != nil {
+			fmt.Fprintf(stderr, "error: %v\n", err)
+			return exitErr
+		}
+		return exitOK
 	case "query":
 		return cmdQuery(args[1:], stdout, stderr)
 	case "version", "--version", "-v":
@@ -61,6 +70,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 func usage(w io.Writer) {
 	fmt.Fprint(w, `usage:
+  dataview serve                               JSON-RPC on stdin/stdout (Neovim)
   dataview query --vault <dir> --dql <query>   run one query, print JSON
   dataview version
 `)
