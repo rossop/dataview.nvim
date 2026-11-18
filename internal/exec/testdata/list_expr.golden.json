@@ -1,0 +1,19 @@
+{
+  "kind": "list",
+  "rows": [
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Alpha",
+        "Due 2026-12-01"
+      ]
+    },
+    {
+      "path": "Projects/Beta.md",
+      "cells": [
+        "Beta",
+        "Due 2026-10-15"
+      ]
+    }
+  ]
+}

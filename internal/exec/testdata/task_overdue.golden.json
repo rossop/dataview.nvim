@@ -1,0 +1,16 @@
+{
+  "kind": "task",
+  "rows": [
+    {
+      "path": "Journal/2026-11-14.md",
+      "cells": [
+        "Review [[Beta]] notes [due:: 2026-11-10]"
+      ],
+      "task": {
+        "line": 7,
+        "status": " ",
+        "completed": false
+      }
+    }
+  ]
+}

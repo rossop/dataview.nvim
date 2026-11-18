@@ -1,0 +1,23 @@
+{
+  "kind": "list",
+  "rows": [
+    {
+      "path": "Journal/2026-11-14.md",
+      "cells": [
+        "2026-11-14"
+      ]
+    },
+    {
+      "path": "Areas/Reading.md",
+      "cells": [
+        "Reading"
+      ]
+    },
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Alpha"
+      ]
+    }
+  ]
+}

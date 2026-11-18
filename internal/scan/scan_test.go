@@ -44,7 +44,7 @@ func TestVaultIncremental(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Updated != 4 || ix.Len() != 4 {
+	if res.Updated != 5 || ix.Len() != 5 {
 		t.Fatalf("first scan: %+v, len %d", res, ix.Len())
 	}
 	if ix.Get(".obsidian/app.json") != nil {
@@ -55,7 +55,7 @@ func TestVaultIncremental(t *testing.T) {
 	}
 
 	res, _ = Vault(root, ix)
-	if res.Updated != 0 || res.Unchanged != 4 {
+	if res.Updated != 0 || res.Unchanged != 5 {
 		t.Errorf("rescan should reuse all notes: %+v", res)
 	}
 
@@ -69,7 +69,7 @@ func TestVaultIncremental(t *testing.T) {
 	os.Remove(filepath.Join(root, "Broken.md"))
 
 	res, _ = Vault(root, ix)
-	if res.Updated != 1 || res.Removed != 1 || res.Unchanged != 2 {
+	if res.Updated != 1 || res.Removed != 1 || res.Unchanged != 3 {
 		t.Errorf("incremental: %+v", res)
 	}
 	if got := ix.Get("Projects/Alpha.md").Tags; len(got) != 1 || got[0] != "#changed" {

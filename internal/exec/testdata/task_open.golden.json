@@ -1,0 +1,38 @@
+{
+  "kind": "task",
+  "rows": [
+    {
+      "path": "Journal/2026-11-14.md",
+      "cells": [
+        "Review [[Beta]] notes [due:: 2026-11-10]"
+      ],
+      "task": {
+        "line": 7,
+        "status": " ",
+        "completed": false
+      }
+    },
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Draft outline"
+      ],
+      "task": {
+        "line": 12,
+        "status": " ",
+        "completed": false
+      }
+    },
+    {
+      "path": "Areas/Reading.md",
+      "cells": [
+        "Finish chapter 3 [due:: 2026-11-30]"
+      ],
+      "task": {
+        "line": 4,
+        "status": " ",
+        "completed": false
+      }
+    }
+  ]
+}

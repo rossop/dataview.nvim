@@ -1,0 +1,1 @@
+LIST WHERE contains(file.tags, "#book")

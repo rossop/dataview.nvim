@@ -1,0 +1,1 @@
+TABLE WITHOUT ID file.name AS Name, file.folder AS Folder, file.etags AS Tags, length(file.tasks) AS Tasks, file.day AS Day SORT file.path

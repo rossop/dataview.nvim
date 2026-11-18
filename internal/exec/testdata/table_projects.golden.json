@@ -1,0 +1,29 @@
+{
+  "kind": "table",
+  "columns": [
+    "File",
+    "status",
+    "due",
+    "priority"
+  ],
+  "rows": [
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Alpha",
+        "active",
+        "December 01, 2026",
+        "1"
+      ]
+    },
+    {
+      "path": "Projects/Beta.md",
+      "cells": [
+        "Beta",
+        "done",
+        "October 15, 2026",
+        "3"
+      ]
+    }
+  ]
+}

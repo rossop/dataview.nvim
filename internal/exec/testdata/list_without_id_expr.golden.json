@@ -1,0 +1,17 @@
+{
+  "kind": "list",
+  "rows": [
+    {
+      "path": "Projects/Alpha.md",
+      "cells": [
+        "Alpha (active)"
+      ]
+    },
+    {
+      "path": "Projects/Beta.md",
+      "cells": [
+        "Beta (done)"
+      ]
+    }
+  ]
+}
