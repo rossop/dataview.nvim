@@ -1,0 +1,1 @@
+TABLE WITHOUT ID file.link AS Note, length(file.tasks) AS Tasks FROM #project

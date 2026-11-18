@@ -47,7 +47,7 @@ id|status|task|cites
 T1|x|dv0001 scaffold: fix `flag.Parse()`, `justfile`, SPEC.md, AGENTS.md, `testdata/vault/`, nvim smoke test|I.cmd,V12
 T2|x|dv0002 `internal/note` parser: frontmatter, inline `key:: v` fields (incl `[k:: v]`), tags (nested), wikilinks + md links, tasks|V3,V4
 T3|x|dv0003 `internal/index` + `internal/scan` + `internal/cache`; `BenchmarkScan10k`|V5,V6,V7,V13,V14
-T4|.|dv0004 `internal/dql` lexer + parser → AST, golden parse tests|V1
+T4|x|dv0004 `internal/dql` lexer + parser → AST, golden parse tests|V1
 T5|.|dv0005 `internal/exec` + `dataview query` one-shot CLI → JSON|V1,V10,I.cmd
 T6|.|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
 T7|.|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua

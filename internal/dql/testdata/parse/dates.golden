@@ -1,0 +1,2 @@
+(LIST
+  (where (and (and (and (>= (. file ctime) (call date "2026-01-31")) (< (. file day) (call date "2026-01-31T10:30"))) (= (call date (. file name)) (call date "sow"))) (> (call dur "2 days, 3 hours") (call dur "1 h")))))

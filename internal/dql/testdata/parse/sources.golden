@@ -1,0 +1,2 @@
+(LIST
+  (from (or (or (and #a (not #b)) "Folder/Sub") (and [[Alpha]] (outgoing [[Beta]])))))

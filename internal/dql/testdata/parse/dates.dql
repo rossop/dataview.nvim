@@ -1,0 +1,1 @@
+LIST WHERE file.ctime >= date(2026-01-31) AND file.day < date(2026-01-31T10:30) AND date(file.name) = date(sow) AND dur(2 days, 3 hours) > dur(1 h)

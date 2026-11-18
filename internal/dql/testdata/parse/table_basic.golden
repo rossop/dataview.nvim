@@ -1,0 +1,8 @@
+(TABLE
+  (col "status" status)
+  (col "Due date" due)
+  (col "file.mtime" (. file mtime))
+  (from "Projects")
+  (where (!= status "done"))
+  (sort (due asc) ((. file name) desc))
+  (limit 10))

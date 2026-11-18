@@ -1,0 +1,4 @@
+(LIST
+  (list (+ "Due: " due))
+  (from (or #project #focus))
+  (where due))

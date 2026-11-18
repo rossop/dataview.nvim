@@ -1,0 +1,12 @@
+(TABLE
+  (col "a.b.c" (. (. a b) c))
+  (col "x[0]" (index x 0))
+  (col "x[\"k\"]" (index x "k"))
+  (col "-n * 2 + 3 % 2" (+ (* (- n) 2) (% 3 2)))
+  (col "[1, \"two\", [[Link]]]" (list 1 "two" [[Link]]))
+  (col "contains(file.tags, \"#x\")" (call contains (. file tags) "#x"))
+  (col "due-date" due-date)
+  (col "a - b" (- a b))
+  (col "null" null)
+  (col "true" true)
+  (where (or (and (or a b) c) (! d))))
