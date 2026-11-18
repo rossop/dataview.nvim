@@ -1,0 +1,5 @@
+TABLE status, due AS "Due date", file.mtime
+FROM "Projects"
+WHERE status != "done"
+SORT due ASC, file.name DESC
+LIMIT 10

@@ -1,0 +1,1 @@
+TASK FROM "Areas" WHERE !completed AND due <= date(today) + dur(1 week)

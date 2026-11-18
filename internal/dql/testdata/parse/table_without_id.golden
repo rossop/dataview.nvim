@@ -1,0 +1,4 @@
+(TABLE without-id
+  (col "Note" (. file link))
+  (col "Tasks" (call length (. file tasks)))
+  (from #project))
