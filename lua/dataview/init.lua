@@ -155,6 +155,68 @@ function M.refresh(buf)
   end)
 end
 
+--- Open the note behind a result row; tasks jump to their line.
+function M.open(vault, row)
+  vim.cmd.edit(vim.fn.fnameescape(vault .. "/" .. row.path))
+  if row.task then
+    pcall(vim.api.nvim_win_set_cursor, 0, { row.task.line + 1, 0 })
+  end
+end
+
+-- The query to show in a float or picker: an explicit one, else the block
+-- under the cursor, else the first block in the buffer.
+local function target_query(buf, adhoc)
+  if adhoc and vim.trim(adhoc) ~= "" then
+    return vim.trim(adhoc)
+  end
+  local blocks = require("dataview.blocks").find(buf)
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  for _, b in ipairs(blocks) do
+    if row >= b.start_row and row <= b.end_row then
+      return b.query
+    end
+  end
+  return blocks[1] and blocks[1].query
+end
+
+local function run_query(adhoc, show)
+  local buf = vim.api.nvim_get_current_buf()
+  local q = target_query(buf, adhoc)
+  if not q then
+    return notify("no ```dataview block here; pass a query, e.g. :Dataview pick LIST FROM #tag", vim.log.levels.INFO)
+  end
+  local vault = M.vault(buf)
+  local started = vim.uv.hrtime()
+  request(buf, "query", { dql = q }, function(err, res)
+    local ctx = {
+      vault = vault,
+      title = (q:gsub("%s+", " ")),
+      ms = math.floor((vim.uv.hrtime() - started) / 1e6),
+      open = function(row)
+        M.open(vault, row)
+      end,
+    }
+    show(res, err and err.message, ctx)
+  end)
+end
+
+--- Results of the block under the cursor (or `adhoc`) in a floating window.
+function M.float(adhoc)
+  run_query(adhoc, function(res, err, ctx)
+    require("dataview.render.float").show(res, err, ctx)
+  end)
+end
+
+--- Results of the block under the cursor (or `adhoc`) in a picker.
+function M.pick(adhoc)
+  run_query(adhoc, function(res, err, ctx)
+    if err then
+      return notify(err, vim.log.levels.ERROR)
+    end
+    require("dataview.pickers").pick(res, ctx)
+  end)
+end
+
 function M.log()
   local lines = require("dataview.process").log_lines()
   vim.cmd("botright new")

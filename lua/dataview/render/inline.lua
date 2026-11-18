@@ -44,7 +44,8 @@ local function footer(lines, shown, total, ms)
   lines[#lines + 1] = { { text, "DataviewMuted" } }
 end
 
-local function format_table(res, opts, lines)
+-- rowmap[i] = result row shown on virt line i (nil for headers/footers).
+local function format_table(res, opts, lines, rowmap)
   local cols = res.columns or {}
   local rows = res.rows or {}
   local n = math.min(#rows, opts.max_rows)
@@ -73,11 +74,12 @@ local function format_table(res, opts, lines)
       line[#line + 1] = { "  ", "Normal" }
     end
     lines[#lines + 1] = line
+    rowmap[#lines] = rows[r]
   end
   return n
 end
 
-local function format_list(res, opts, lines)
+local function format_list(res, opts, lines, rowmap)
   local rows = res.rows or {}
   local n = math.min(#rows, opts.max_rows)
   for r = 1, n do
@@ -90,12 +92,13 @@ local function format_list(res, opts, lines)
       line[#line + 1] = { clean(cells[1]), "DataviewFile" }
     end
     lines[#lines + 1] = line
+    rowmap[#lines] = rows[r]
   end
   return n
 end
 
 -- Tasks are grouped under their file, as in Obsidian.
-local function format_tasks(res, opts, lines)
+local function format_tasks(res, opts, lines, rowmap)
   local rows = res.rows or {}
   local n = math.min(#rows, opts.max_rows)
   local last_path
@@ -110,33 +113,40 @@ local function format_tasks(res, opts, lines)
       { done and "  ☑ " or "  ☐ ", "DataviewMuted" },
       { clean(row.cells[1]), done and "DataviewTaskDone" or "DataviewTaskOpen" },
     }
+    rowmap[#lines] = row
   end
   return n
 end
 
---- Turn a query result (or error) into virt_lines chunks. Exposed for tests.
-function M.format(res, err, opts, ms)
-  local lines = {}
+--- Turn a query result (or error) into virt_lines chunks plus a map from
+--- line number to the result row it shows.
+function M.build(res, err, opts, ms)
+  local lines, rowmap = {}, {}
   if err then
     for line in tostring(err):gmatch("[^\n]+") do
       lines[#lines + 1] = { { "dataview: " .. line, "DataviewError" } }
     end
-    return lines
+    return lines, rowmap
   end
   if not res.rows or #res.rows == 0 then
     lines[#lines + 1] = { { "No results", "DataviewMuted" } }
-    return lines
+    return lines, rowmap
   end
   local shown
   if res.kind == "table" then
-    shown = format_table(res, opts, lines)
+    shown = format_table(res, opts, lines, rowmap)
   elseif res.kind == "task" then
-    shown = format_tasks(res, opts, lines)
+    shown = format_tasks(res, opts, lines, rowmap)
   else
-    shown = format_list(res, opts, lines)
+    shown = format_list(res, opts, lines, rowmap)
   end
   footer(lines, shown, #res.rows, ms)
-  return lines
+  return lines, rowmap
+end
+
+--- Virt lines only. Exposed for tests.
+function M.format(res, err, opts, ms)
+  return (M.build(res, err, opts, ms))
 end
 
 local function key(buf, block)

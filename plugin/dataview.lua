@@ -11,6 +11,12 @@ if vim.fn.has("nvim-0.10") == 0 then
 end
 
 local subcommands = {
+  float = function(query)
+    require("dataview").float(query)
+  end,
+  pick = function(query)
+    require("dataview").pick(query)
+  end,
   run = function()
     if require("dataview").run() == 0 then
       require("dataview")._notify("no ```dataview blocks in this buffer", vim.log.levels.INFO)
@@ -30,17 +36,22 @@ local subcommands = {
   end,
 }
 
+-- :Dataview [sub] [query…]; float and pick take an optional ad-hoc query.
 vim.api.nvim_create_user_command("Dataview", function(args)
-  local sub = args.fargs[1] or "run"
+  local sub, rest = args.args:match("^%s*(%S*)%s*(.-)%s*$")
+  sub = sub ~= "" and sub or "run"
   local fn = subcommands[sub]
   if not fn then
     return vim.notify("dataview: unknown subcommand " .. sub, vim.log.levels.ERROR)
   end
-  fn()
+  fn(rest ~= "" and rest or nil)
 end, {
-  nargs = "?",
+  nargs = "*",
   desc = "Run Obsidian Dataview queries",
-  complete = function(lead)
+  complete = function(lead, line)
+    if line:match("^%s*%S+%s+%S+%s") then
+      return {} -- past the subcommand: free-form query
+    end
     return vim.tbl_filter(function(s)
       return vim.startswith(s, lead)
     end, vim.tbl_keys(subcommands))
@@ -49,6 +60,8 @@ end, {
 
 vim.keymap.set("n", "<Plug>(dataview-run)", subcommands.run, { desc = "Dataview: run blocks" })
 vim.keymap.set("n", "<Plug>(dataview-toggle)", subcommands.toggle, { desc = "Dataview: toggle results" })
+vim.keymap.set("n", "<Plug>(dataview-float)", subcommands.float, { desc = "Dataview: results in a float" })
+vim.keymap.set("n", "<Plug>(dataview-pick)", subcommands.pick, { desc = "Dataview: results in a picker" })
 vim.keymap.set("n", "<Plug>(dataview-refresh)", subcommands.refresh, { desc = "Dataview: rescan vault" })
 
 local group = vim.api.nvim_create_augroup("dataview", { clear = true })
