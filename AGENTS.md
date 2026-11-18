@@ -11,7 +11,7 @@ Run Obsidian Dataview (DQL) queries from Neovim. A Go binary does the parsing, i
 - No hard plugin dependencies. Telescope, fzf-lua and snacks are optional adapters loaded with `pcall(require)`.
 
 ## Workflow
-- One §T task per branch: `feat/dvNNNN-<slug>` (or `fix/…`), merged into `main` locally with `--ff-only` once `just check` is green. No PRs.
+- One §T task per branch: `feat/dvNNNN-<slug>` (or `fix/…`), PR into `main` once `just check` is green.
 - Conventional Commits with the task id as scope: `feat(dv0002): parse inline fields`.
 - Mark §T status `.` → `~` → `x` as work progresses. Log bugs in §B via `/spec bug:`.
 - `just check` is the definition of green (go vet, go test, headless Neovim smoke test). Run it before calling anything done.
