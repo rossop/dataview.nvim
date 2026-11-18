@@ -35,7 +35,7 @@ func ParseValue(raw string) any {
 	if m := wholeLinkRe.FindStringSubmatch(s); m != nil {
 		return newWikiLink(m[1], strings.HasPrefix(s, "!"))
 	}
-	return s
+	return strings.Clone(s)
 }
 
 func parseDate(s string) (time.Time, bool) {
