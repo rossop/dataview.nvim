@@ -10,7 +10,7 @@ DQL block in Obsidian note → correct results in Neovim < 100 ms. setup = add p
 - DQL v1 = core subset: TABLE|LIST|TASK, FROM (folder, #tag, [[link]]), WHERE, SORT, LIMIT, common fns. GROUP BY|FLATTEN|CALENDAR later. ⊥ DataviewJS.
 - UI default = native (extmark virt_lines + float). pickers (telescope, fzf-lua, snacks, vim.ui.select) optional adapters only.
 - install: prebuilt binary auto-download, SHA256 verified. ⊥ Go toolchain needed by user.
-- branch `feat/dvNNNN-*` → merged into `main` locally (no PRs). Conventional Commits, scope = task id (`fix(dv0001): …`).
+- branch `feat/dvNNNN-*` → PR into `main`. Conventional Commits, scope = task id (`fix(dv0001): …`).
 - green = `just check`.
 
 ## §I INTERFACES
@@ -28,7 +28,7 @@ DQL block in Obsidian note → correct results in Neovim < 100 ms. setup = add p
 ## §V INVARIANTS
 V1: ∀ v1 DQL feature → golden test vs Obsidian Dataview output on `testdata/vault/`
 V2: vault read-only. ⊥ write|rename|delete under vault path
-V3: malformed note (bad YAML etc) → skipped + warning. ⊥ panic, ⊥ scan abort
+V3: malformed frontmatter → frontmatter dropped + warning, note still indexed (matches Dataview). unreadable file → skipped + warning. ⊥ panic, ⊥ scan abort
 V4: index stores metadata only. ⊥ note body in memory after parse
 V5: RSS ≤ 30 MB while indexing 10k notes
 V6: warm query < 50 ms; cold start 10k notes < 1 s w/ cache, < 3 s w/o
@@ -45,7 +45,7 @@ V15: downloaded binary SHA256 ! match release checksum before exec
 ## §T TASKS
 id|status|task|cites
 T1|x|dv0001 scaffold: fix `flag.Parse()`, `justfile`, SPEC.md, AGENTS.md, `testdata/vault/`, nvim smoke test|I.cmd,V12
-T2|.|dv0002 `internal/note` parser: frontmatter, inline `key:: v` fields (incl `[k:: v]`), tags (nested), wikilinks + md links, tasks|V3,V4
+T2|x|dv0002 `internal/note` parser: frontmatter, inline `key:: v` fields (incl `[k:: v]`), tags (nested), wikilinks + md links, tasks|V3,V4
 T3|.|dv0003 `internal/index` + `internal/scan` + `internal/cache`; `BenchmarkScan10k`|V5,V6,V7,V13,V14
 T4|.|dv0004 `internal/dql` lexer + parser → AST, golden parse tests|V1
 T5|.|dv0005 `internal/exec` + `dataview query` one-shot CLI → JSON|V1,V10,I.cmd
