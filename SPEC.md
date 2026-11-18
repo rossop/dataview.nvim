@@ -14,7 +14,7 @@ DQL block in Obsidian note → correct results in Neovim < 100 ms. setup = add p
 - green = `just check`.
 
 ## §I INTERFACES
-- cmd: `dataview serve` → newline-delimited JSON-RPC 2.0 on stdin/stdout
+- cmd: `dataview serve` → newline-delimited JSON-RPC 2.0 on stdin/stdout; index re-stat ≤ every 5 s, saved buffers via `refresh`
 - cmd: `dataview query --vault <dir> --dql <q>` → stdout JSON `Result`; errors → stderr; exit 0 ok, 1 query err, 2 usage err
 - rpc: `initialize{vault}` → `{protocolVersion, version, notes}`
 - rpc: `query{dql}` → `Result{kind, columns, rows}`
@@ -49,7 +49,7 @@ T2|x|dv0002 `internal/note` parser: frontmatter, inline `key:: v` fields (incl `
 T3|x|dv0003 `internal/index` + `internal/scan` + `internal/cache`; `BenchmarkScan10k`|V5,V6,V7,V13,V14
 T4|x|dv0004 `internal/dql` lexer + parser → AST, golden parse tests|V1
 T5|x|dv0005 `internal/exec` + `dataview query` one-shot CLI → JSON|V1,V10,I.cmd
-T6|.|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
+T6|x|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
 T7|.|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua
 T8|.|dv0008 `render/float` + `pickers/*` adapters, jump-to-note|V12
 T9|.|dv0009 distribution: goreleaser (darwin/linux/windows × amd64/arm64, CGO off, `-s -w`), `install.lua`, `health.lua`, README lazy.nvim spec|V15,I.health
