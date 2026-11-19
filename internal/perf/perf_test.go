@@ -1,3 +1,5 @@
+//go:build !windows
+
 // Package perf asserts the §V.5/§V.6 budgets against the real binary on a
 // synthetic 10k-note vault. Slow (≈10 s), so it only runs with
 // DATAVIEW_PERF=1: `just perf`, and in CI.
@@ -108,9 +110,6 @@ func within(d, budget time.Duration) bool {
 func TestBudgets(t *testing.T) {
 	if os.Getenv("DATAVIEW_PERF") == "" {
 		t.Skip("set DATAVIEW_PERF=1 (or run `just perf`)")
-	}
-	if runtime.GOOS == "windows" {
-		t.Skip("peak RSS via rusage is unix-only")
 	}
 	tmp := t.TempDir()
 	bin := filepath.Join(tmp, "dataview")
