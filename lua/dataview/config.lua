@@ -14,6 +14,11 @@ M.defaults = {
   max_rows = 50,
   -- Cells wider than this are truncated with "…".
   max_cell_width = 40,
+  -- :Dataview pick backend: "auto" (telescope → fzf-lua → snacks →
+  -- vim.ui.select) or one of those names.
+  picker = "auto",
+  -- :Dataview float window size as a fraction of the editor, and border.
+  float = { width = 0.8, height = 0.6, border = "rounded" },
 }
 
 M.options = vim.deepcopy(M.defaults)
