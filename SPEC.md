@@ -20,10 +20,11 @@ DQL block in Obsidian note → correct results in Neovim < 100 ms. setup = add p
 - rpc: `query{dql}` → `Result{kind, columns, rows}`
 - rpc: `refresh{paths?}` → `{updated, removed}`
 - rpc: `shutdown` → `null` → process exits 0
-- lua: `require('dataview').setup(opts)`; opts: `vault?`, `binary?`, `auto`, `refresh_on_save`, `max_rows`, `max_cell_width`, `picker = 'auto'|'telescope'|'fzf'|'snacks'|'select'`, `float{width,height,border}`
-- nvim cmd: `:Dataview {run|toggle|clear|float|pick|refresh|log}`; `float`/`pick` take optional ad-hoc DQL; `<Plug>(dataview-*)` maps; ⊥ default keymaps
+- lua: `require('dataview').setup(opts)`; opts: `vault?`, `binary?`, `auto_install`, `auto`, `refresh_on_save`, `max_rows`, `max_cell_width`, `picker = 'auto'|'telescope'|'fzf'|'snacks'|'select'`, `float{width,height,border}`
+- nvim cmd: `:Dataview {run|toggle|clear|float|pick|refresh|install|log}`; `float`/`pick` take optional ad-hoc DQL; `<Plug>(dataview-*)` maps; ⊥ default keymaps
 - health: `:checkhealth dataview`
-- file: `testdata/vault/` fixture vault; `justfile` targets `check vet test nvim-test build`
+- release: GitHub release `v<version>` (= `lua/dataview/version.lua`) w/ `dataview_<os>_<arch>[.exe]` × darwin|linux|windows × amd64|arm64 + `checksums.txt`; built by `just dist`
+- file: `testdata/vault/` fixture vault; `justfile` targets `check vet test nvim-test build dist release`
 
 ## §V INVARIANTS
 V1: ∀ v1 DQL feature → golden test vs Obsidian Dataview output on `testdata/vault/`
@@ -52,7 +53,7 @@ T5|x|dv0005 `internal/exec` + `dataview query` one-shot CLI → JSON|V1,V10,I.cm
 T6|x|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
 T7|x|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua
 T8|x|dv0008 `render/float` + `pickers/*` adapters, jump-to-note|V12
-T9|.|dv0009 distribution: goreleaser (darwin/linux/windows × amd64/arm64, CGO off, `-s -w`), `install.lua`, `health.lua`, README lazy.nvim spec|V15,I.health
+T9|x|dv0009 distribution: `just dist` cross-compile (darwin/linux/windows × amd64/arm64, CGO off, `-s -w`) + release CI, `install.lua`, `health.lua`, README lazy.nvim spec|V15,I.health
 T10|.|dv0010 perf CI: synthetic 10k vault, assert budgets, fail on >20% regress|V5,V6
 
 ## §B BUGS

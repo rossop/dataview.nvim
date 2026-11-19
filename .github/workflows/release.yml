@@ -1,0 +1,27 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: extractions/setup-just@v2
+      - name: Tag must match lua/dataview/version.lua
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          have=$(sed -n 's/^return "\(.*\)"$/\1/p' lua/dataview/version.lua)
+          [ "$have" = "$want" ] || { echo "version.lua says $have, tag says $want"; exit 1; }
+      - run: go test ./...
+      - run: just dist "${GITHUB_REF_NAME#v}"
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

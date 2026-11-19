@@ -63,10 +63,28 @@ local function request(buf, method, params, cb)
     return cb({ message = "no vault found: open a note inside a folder with .obsidian/ or set vault in setup()" })
   end
   local bin = M.binary()
-  if not bin then
+  if bin then
+    return require("dataview.process").request(vault, bin, method, params, cb)
+  end
+  if config.options.binary or not config.options.auto_install then
     return cb({ message = "binary not found; run :checkhealth dataview" })
   end
-  require("dataview.process").request(vault, bin, method, params, cb)
+  -- First use with nothing installed: fetch the release binary, then carry on.
+  require("dataview.install").install(function(err, path)
+    if err then
+      return cb({ message = err })
+    end
+    require("dataview.process").request(vault, path, method, params, cb)
+  end)
+end
+
+function M.install()
+  require("dataview.install").install(function(err)
+    if err then
+      notify(err, vim.log.levels.ERROR)
+    end
+    require("dataview.process").stop_all() -- next query uses the new binary
+  end)
 end
 
 --- Run every dataview block in the buffer and show results inline.

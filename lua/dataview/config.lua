@@ -6,6 +6,8 @@ M.defaults = {
   vault = nil,
   -- Path to the dataview binary. nil = auto (see dataview.binary()).
   binary = nil,
+  -- Download the release binary on first use if none is found.
+  auto_install = true,
   -- Render results automatically when a note with dataview blocks is shown.
   auto = true,
   -- Re-run visible results after any note in the vault is written.
