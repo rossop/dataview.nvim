@@ -14,6 +14,10 @@ nvim-test: build
 build:
     go build -o bin/dataview ./cmd/dataview
 
+# §V.5/§V.6 budgets on a synthetic 10k-note vault, against the real binary.
+perf:
+    DATAVIEW_PERF=1 go test ./internal/perf -count=1 -v -run TestBudgets
+
 # Cross-compile release binaries + checksums.txt into dist/.
 # Static (CGO off) and stripped so one small file runs anywhere (§C).
 dist version=`nvim --headless -u NONE -l /dev/stdin <<< 'io.write(dofile("lua/dataview/version.lua"))'`:

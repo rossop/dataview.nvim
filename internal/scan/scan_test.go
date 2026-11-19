@@ -1,13 +1,13 @@
 package scan
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/rossop/dataview.nvim/internal/index"
+	"github.com/rossop/dataview.nvim/internal/testvault"
 )
 
 // copyVault copies the fixture into a temp dir so tests can mutate it
@@ -93,28 +93,14 @@ func TestPaths(t *testing.T) {
 	}
 }
 
-// writeSynthetic creates n notes shaped like real ones: frontmatter, fields,
-// tags, links and tasks spread over 100 folders.
 func writeSynthetic(tb testing.TB, n int) string {
 	tb.Helper()
 	root := tb.TempDir()
-	for i := range n {
-		dir := filepath.Join(root, fmt.Sprintf("f%02d", i%100))
-		os.MkdirAll(dir, 0o755)
-		body := fmt.Sprintf("---\nstatus: s%d\ntags: [t%d]\ndue: 2026-01-%02d\n---\n# N%d\n\nprio:: %d\nSee [[N%d]] and [[N%d]] #x/y%d\n\n- [ ] task %d [due:: 2026-02-01]\n- [x] done\n%s\n",
-			i%5, i%20, i%28+1, i, i%10, (i+1)%n, (i+7)%n, i%3, i, filler)
-		os.WriteFile(filepath.Join(dir, fmt.Sprintf("N%d.md", i)), []byte(body), 0o644)
+	if err := testvault.Write(root, n); err != nil {
+		tb.Fatal(err)
 	}
 	return root
 }
-
-var filler = func() string {
-	b := make([]byte, 0, 2000)
-	for len(b) < 2000 {
-		b = append(b, "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "...)
-	}
-	return string(b)
-}()
 
 func BenchmarkScan10k(b *testing.B) {
 	root := writeSynthetic(b, 10_000)

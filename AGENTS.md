@@ -14,5 +14,5 @@ Run Obsidian Dataview (DQL) queries from Neovim. A Go binary does the parsing, i
 - One §T task per branch: `feat/dvNNNN-<slug>` (or `fix/…`), PR into `main` once `just check` is green.
 - Conventional Commits with the task id as scope: `feat(dv0002): parse inline fields`.
 - Mark §T status `.` → `~` → `x` as work progresses. Log bugs in §B via `/spec bug:`.
-- `just check` is the definition of green (go vet, go test, headless Neovim specs in `tests/` incl. e2e against the built binary). Run it before calling anything done.
+- `just check` is the definition of green (go vet, go test, headless Neovim specs in `tests/` incl. e2e against the built binary). Run it before calling anything done. Run `just perf` too when touching parsing, the index, the cache or the executor (§V.16).
 - New DQL behaviour needs a golden test against `testdata/vault/` whose expected output comes from real Obsidian Dataview (§V.1).

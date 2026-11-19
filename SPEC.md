@@ -42,6 +42,7 @@ V12: plugin loads w/ zero plugin deps; optional adapters via `pcall(require)`
 V13: cache version mismatch | corrupt → discard + full rescan. ⊥ crash
 V14: scan skips `.obsidian/`, `.git/`, non-`.md`
 V15: downloaded binary SHA256 ! match release checksum before exec
+V16: V5 & V6 asserted vs real binary on synthetic 10k vault (`just perf`, CI job `perf`). ⊥ merge w/ perf red
 
 ## §T TASKS
 id|status|task|cites
@@ -54,7 +55,11 @@ T6|x|dv0006 `internal/rpc` + `dataview serve`, pipe integration test|V11,I.rpc
 T7|x|dv0007 Lua core: `process`, `blocks`, `render/inline`, `:Dataview run\|toggle`, refresh on `BufWritePost`|V8,V9,V12,I.lua
 T8|x|dv0008 `render/float` + `pickers/*` adapters, jump-to-note|V12
 T9|x|dv0009 distribution: `just dist` cross-compile (darwin/linux/windows × amd64/arm64, CGO off, `-s -w`) + release CI, `install.lua`, `health.lua`, README lazy.nvim spec|V15,I.health
-T10|.|dv0010 perf CI: synthetic 10k vault, assert budgets, fail on >20% regress|V5,V6
+T10|x|dv0010 perf CI: synthetic 10k vault, real-binary budget test (`internal/perf`), CI job; memory fixes from B1-B4|V5,V6,V16
 
 ## §B BUGS
 id|date|cause|fix
+B1|2026-11-19|24 MiB soft `SetMemoryLimit` < live index + headroom ∴ GC thrash: 710 cycles, cold scan 1.6 s, RSS 39 MB. ∴ limit removed, `SetGCPercent(30)`|V16
+B2|2026-11-19|TASK/`file.*` built full map per row (all tasks, links, inlinks) ∴ 57 MB RSS on 10k-note TASK query. ∴ `taskField`/`fileField` compute on demand|V16
+B3|2026-11-19|gob `Encode` of whole index buffers full copy ∴ +14 MB on cache save. ∴ header + 1 msg/note, bufio|V16
+B4|2026-11-19|scan collected `fs.FileInfo` ∀ files before parsing ∴ +6 MB peak. ∴ walk streams jobs (path,size,times) to pool|V16

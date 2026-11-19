@@ -3,6 +3,7 @@
 package cache
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
@@ -16,16 +17,19 @@ import (
 	"github.com/rossop/dataview.nvim/internal/note"
 )
 
-// Version must be bumped whenever note.Note or the parser's output changes,
-// so stale caches are discarded rather than misread (§V.13).
-const Version = 1
+// Version must be bumped whenever note.Note, the parser's output or the file
+// layout changes, so stale caches are discarded rather than misread (§V.13).
+const Version = 2
 
 var ErrStale = errors.New("cache stale or unreadable")
 
-type file struct {
+// The file is a header followed by Count notes, each its own gob message.
+// Encoding notes one at a time keeps the encoder's buffer at one note
+// instead of a full copy of the index (≈14 MB for 10k notes, §V.5).
+type header struct {
 	Version int
 	Vault   string
-	Notes   []*note.Note
+	Count   int
 }
 
 func init() {
@@ -61,15 +65,25 @@ func Load(path, vault string, ix *index.Index) error {
 		return fmt.Errorf("%w: %v", ErrStale, err)
 	}
 	defer f.Close()
-	var c file
-	if err := gob.NewDecoder(f).Decode(&c); err != nil {
+	dec := gob.NewDecoder(bufio.NewReader(f))
+	var h header
+	if err := dec.Decode(&h); err != nil {
 		return fmt.Errorf("%w: %v", ErrStale, err)
 	}
 	abs, _ := filepath.Abs(vault)
-	if c.Version != Version || c.Vault != abs {
-		return fmt.Errorf("%w: version %d for %q", ErrStale, c.Version, c.Vault)
+	if h.Version != Version || h.Vault != abs || h.Count < 0 {
+		return fmt.Errorf("%w: version %d for %q", ErrStale, h.Version, h.Vault)
 	}
-	for _, n := range c.Notes {
+	// Decode everything before touching ix, so a truncated file changes nothing.
+	notes := make([]*note.Note, 0, h.Count)
+	for range h.Count {
+		n := new(note.Note)
+		if err := dec.Decode(n); err != nil {
+			return fmt.Errorf("%w: %v", ErrStale, err)
+		}
+		notes = append(notes, n)
+	}
+	for _, n := range notes {
 		ix.Put(n)
 	}
 	return nil
@@ -90,11 +104,23 @@ func Save(path, vault string, ix *index.Index) error {
 		return err
 	}
 	defer os.Remove(tmp.Name())
-	if err := gob.NewEncoder(tmp).Encode(file{Version, abs, ix.All()}); err != nil {
-		tmp.Close()
-		return err
+	w := bufio.NewWriter(tmp)
+	enc := gob.NewEncoder(w)
+	notes := ix.All()
+	err = enc.Encode(header{Version, abs, len(notes)})
+	for _, n := range notes {
+		if err != nil {
+			break
+		}
+		err = enc.Encode(n)
 	}
-	if err := tmp.Close(); err != nil {
+	if err == nil {
+		err = w.Flush()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
