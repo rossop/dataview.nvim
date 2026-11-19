@@ -21,6 +21,13 @@ func (e *executor) eval(x dql.Expr, s scope) (any, error) {
 		v, _ := s.lookup(x.Name)
 		return v, nil
 	case dql.FieldAccess:
+		// file.x is computed field by field rather than via the whole object.
+		if id, ok := x.X.(dql.Ident); ok && id.Name == "file" {
+			if v, ok := s.page().fileField(x.Name); ok {
+				return v, nil
+			}
+			return nil, nil
+		}
 		obj, err := e.eval(x.X, s)
 		if err != nil {
 			return nil, err

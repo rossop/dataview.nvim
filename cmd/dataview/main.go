@@ -33,10 +33,13 @@ const (
 )
 
 func main() {
-	// A soft heap limit keeps RSS near the §V.5 budget by making the GC work
-	// harder before the process grows. GOMEMLIMIT still overrides it.
-	if os.Getenv("GOMEMLIMIT") == "" {
-		debug.SetMemoryLimit(24 << 20)
+	// The index is long-lived and the rest is short-lived garbage, so a lower
+	// GC target trades a little CPU for a lower peak RSS (§V.5). Measured on
+	// 10k notes: GOGC 100 → 30 takes peak RSS from ~37 MB to ~29 MB and a
+	// cold scan from 0.48 s to 0.63 s. A hard memory limit was worse: with
+	// live data near the limit the GC thrashed (700 cycles, 1.6 s).
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(30)
 	}
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }

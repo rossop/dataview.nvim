@@ -48,64 +48,94 @@ func (p *pageScope) lookup(name string) (any, bool) {
 
 var dayInName = regexp.MustCompile(`\d{4}-\d{2}-\d{2}`)
 
-func (p *pageScope) fileObject() map[string]any {
-	if p.file != nil {
-		return p.file
-	}
+var fileFields = []string{
+	"name", "path", "folder", "ext", "link", "size", "mtime", "mday", "ctime", "cday",
+	"day", "tags", "etags", "aliases", "outlinks", "inlinks", "tasks", "frontmatter",
+}
+
+// fileField computes one file.* value on demand. Queries usually touch one
+// or two of these per row, and building them all (every task object, every
+// resolved link) for 10k notes cost more memory than the index itself (§V.5).
+func (p *pageScope) fileField(name string) (any, bool) {
 	e, n := p.e, p.n
-	mtime, ctime := e.wall(n.MTime), e.wall(n.CTime)
-
-	var outlinks []any
-	seen := map[string]bool{}
-	for _, l := range n.Links {
-		r := e.resolveLink(l, n.Path)
-		if !seen[r.Path] {
-			seen[r.Path] = true
-			outlinks = append(outlinks, r)
+	switch name {
+	case "name":
+		return n.Name(), true
+	case "path":
+		return n.Path, true
+	case "folder":
+		return n.Folder(), true
+	case "ext":
+		return "md", true
+	case "link":
+		return note.Link{Path: n.Path}, true
+	case "size":
+		return float64(n.Size), true
+	case "mtime":
+		return e.wall(n.MTime), true
+	case "mday":
+		return truncDay(e.wall(n.MTime)), true
+	case "ctime":
+		return e.wall(n.CTime), true
+	case "cday":
+		return truncDay(e.wall(n.CTime)), true
+	case "day":
+		if m := dayInName.FindString(n.Name()); m != "" {
+			if t, err := time.Parse("2006-01-02", m); err == nil {
+				return t, true
+			}
 		}
-	}
-	var inlinks []any
-	for _, src := range e.ix.Inlinks(n.Path) {
-		inlinks = append(inlinks, note.Link{Path: src})
-	}
-	tasks := make([]any, len(n.Tasks))
-	for i := range n.Tasks {
-		tasks[i] = e.taskObject(n, &n.Tasks[i])
-	}
-	var day any
-	if m := dayInName.FindString(n.Name()); m != "" {
-		if t, err := time.Parse("2006-01-02", m); err == nil {
-			day = t
+		return nil, true
+	case "tags":
+		return strList(expandTags(n.Tags)), true
+	case "etags":
+		return strList(n.Tags), true
+	case "aliases":
+		return strList(n.Aliases), true
+	case "outlinks":
+		var out []any
+		seen := map[string]bool{}
+		for _, l := range n.Links {
+			r := e.resolveLink(l, n.Path)
+			if !seen[r.Path] {
+				seen[r.Path] = true
+				out = append(out, r)
+			}
 		}
+		return out, true
+	case "inlinks":
+		var out []any
+		for _, src := range e.ix.Inlinks(n.Path) {
+			out = append(out, note.Link{Path: src})
+		}
+		return out, true
+	case "tasks":
+		out := make([]any, len(n.Tasks))
+		for i := range n.Tasks {
+			out[i] = e.taskObject(n, &n.Tasks[i])
+		}
+		return out, true
+	case "frontmatter":
+		return fieldsMap(e, n.Frontmatter, n.Path), true
 	}
+	return nil, false
+}
 
-	p.file = map[string]any{
-		"name":        n.Name(),
-		"path":        n.Path,
-		"folder":      n.Folder(),
-		"ext":         "md",
-		"link":        note.Link{Path: n.Path},
-		"size":        float64(n.Size),
-		"mtime":       mtime,
-		"mday":        truncDay(mtime),
-		"ctime":       ctime,
-		"cday":        truncDay(ctime),
-		"day":         day,
-		"tags":        strList(expandTags(n.Tags)),
-		"etags":       strList(n.Tags),
-		"aliases":     strList(n.Aliases),
-		"outlinks":    outlinks,
-		"inlinks":     inlinks,
-		"tasks":       tasks,
-		"frontmatter": fieldsMap(e, n.Frontmatter, n.Path),
+// fileObject materialises every file.* field; only used when a query needs
+// `file` as a whole value.
+func (p *pageScope) fileObject() map[string]any {
+	if p.file == nil {
+		p.file = make(map[string]any, len(fileFields))
+		for _, k := range fileFields {
+			p.file[k], _ = p.fileField(k)
+		}
 	}
 	return p.file
 }
 
 type taskScope struct {
-	pg  *pageScope
-	t   *note.Task
-	obj map[string]any
+	pg *pageScope
+	t  *note.Task
 }
 
 func (t *taskScope) path() string     { return t.pg.n.Path }
@@ -113,31 +143,51 @@ func (t *taskScope) page() *pageScope { return t.pg }
 
 // Task rows see the task's own fields first, then the page's.
 func (t *taskScope) lookup(name string) (any, bool) {
-	if t.obj == nil {
-		t.obj = t.pg.e.taskObject(t.pg.n, t.t)
-	}
-	if v, ok := t.obj[name]; ok {
+	if v, ok := t.pg.e.taskField(t.pg.n, t.t, name); ok {
 		return v, true
 	}
 	return t.pg.lookup(name)
 }
 
-func (e *executor) taskObject(n *note.Note, t *note.Task) map[string]any {
-	links := make([]any, len(t.Links))
-	for i, l := range t.Links {
-		links[i] = e.resolveLink(l, n.Path)
+// taskField answers one task property without allocating a task object.
+func (e *executor) taskField(n *note.Note, t *note.Task, name string) (any, bool) {
+	switch name {
+	case "text":
+		return t.Text, true
+	case "status":
+		return t.Status, true
+	case "completed":
+		return t.Completed, true
+	case "checked":
+		return t.Status != " ", true
+	case "line":
+		return float64(t.Line), true
+	case "path":
+		return n.Path, true
+	case "link":
+		return note.Link{Path: n.Path}, true
+	case "tags":
+		return strList(t.Tags), true
+	case "outlinks":
+		links := make([]any, len(t.Links))
+		for i, l := range t.Links {
+			links[i] = e.resolveLink(l, n.Path)
+		}
+		return links, true
+	case "task":
+		return true, true
 	}
-	obj := map[string]any{
-		"text":      t.Text,
-		"status":    t.Status,
-		"completed": t.Completed,
-		"checked":   t.Status != " ",
-		"line":      float64(t.Line),
-		"path":      n.Path,
-		"link":      note.Link{Path: n.Path},
-		"tags":      strList(t.Tags),
-		"outlinks":  links,
-		"task":      true,
+	if v, ok := t.Fields.Get(name); ok {
+		return e.resolve(v, n.Path), true
+	}
+	return nil, false
+}
+
+// taskObject is a task as a value, e.g. an element of file.tasks.
+func (e *executor) taskObject(n *note.Note, t *note.Task) map[string]any {
+	obj := make(map[string]any, len(taskFields)+len(t.Fields))
+	for _, k := range taskFields {
+		obj[k], _ = e.taskField(n, t, k)
 	}
 	for _, f := range t.Fields {
 		obj[f.Key] = e.resolve(f.Value, n.Path)
@@ -147,6 +197,8 @@ func (e *executor) taskObject(n *note.Note, t *note.Task) map[string]any {
 	}
 	return obj
 }
+
+var taskFields = []string{"text", "status", "completed", "checked", "line", "path", "link", "tags", "outlinks", "task"}
 
 // pageObject is what [[Link]].field sees: frontmatter, inline fields and file.
 func (e *executor) pageObject(n *note.Note) map[string]any {

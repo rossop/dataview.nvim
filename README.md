@@ -3,8 +3,8 @@
 Run [Obsidian Dataview](https://blacksmithgu.github.io/obsidian-dataview/) queries in Neovim. Open a note with a ` ```dataview ` block and the results appear under it, without Obsidian running.
 
 - **No setup.** Add the plugin; a small, checksum-verified binary downloads on first use. No Go toolchain, no other plugins.
-- **Fast.** Queries answer in milliseconds; a 10,000-note vault indexes in about 0.3 s, and later sessions reuse an on-disk cache.
-- **Light.** One background process per vault while Neovim runs (about 15 MB of index for 10k notes), gone when you quit.
+- **Fast.** Queries answer in a few milliseconds; a 10,000-note vault indexes in under a second, and later sessions start from an on-disk cache in about 65 ms.
+- **Light.** One background process per vault while Neovim runs, under 30 MB peak for a 10,000-note vault, gone when you quit.
 - **Read-only.** Your vault is never written to.
 
 ## Install

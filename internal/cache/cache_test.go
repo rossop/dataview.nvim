@@ -42,6 +42,12 @@ func TestStale(t *testing.T) {
 	if err := Load(path, "/other", index.New()); !errors.Is(err, ErrStale) {
 		t.Errorf("other vault: %v", err)
 	}
+	// Truncated mid-stream: nothing may be loaded.
+	full, _ := os.ReadFile(path)
+	os.WriteFile(path, full[:len(full)-3], 0o644)
+	if err := Load(path, "/vault", index.New()); !errors.Is(err, ErrStale) {
+		t.Errorf("truncated: %v", err)
+	}
 	os.WriteFile(path, []byte("garbage"), 0o644)
 	fresh := index.New()
 	if err := Load(path, "/vault", fresh); !errors.Is(err, ErrStale) || fresh.Len() != 0 {

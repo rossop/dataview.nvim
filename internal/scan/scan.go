@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rossop/dataview.nvim/internal/index"
 	"github.com/rossop/dataview.nvim/internal/note"
@@ -21,20 +22,32 @@ type Result struct {
 	Warnings  []string `json:"warnings,omitempty"`
 }
 
+// job is what a worker needs for one file. Holding fs.FileInfo instead
+// (with the OS stat struct inside) for every file in a 10k vault cost ~2 MB.
 type job struct {
-	rel  string
-	info fs.FileInfo
+	rel          string
+	size         int64
+	mtime, ctime time.Time
+}
+
+func newJob(rel string, info fs.FileInfo) job {
+	return job{rel, info.Size(), info.ModTime(), birthTime(info)}
 }
 
 // Vault brings ix in line with the vault on disk. Files whose size and mtime
 // match the indexed note are not re-read (§V.7); notes no longer on disk are
-// removed.
+// removed. Files stream from the walk straight to the parse workers, so no
+// list of the whole vault is ever held in memory (§V.5).
 func Vault(root string, ix *index.Index) (Result, error) {
 	var res Result
-	var jobs []job
-	seen := map[string]bool{}
+	// Only needed to find deletions; a first scan has nothing to delete.
+	var seen map[string]bool
+	if ix.Len() > 0 {
+		seen = make(map[string]bool, ix.Len())
+	}
 
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	p := startPool(root, ix)
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			res.Warnings = append(res.Warnings, err.Error())
 			if d != nil && d.IsDir() {
@@ -45,7 +58,7 @@ func Vault(root string, ix *index.Index) (Result, error) {
 		name := d.Name()
 		if d.IsDir() {
 			// Dot folders (.obsidian, .git, .trash) are never notes (§V.14).
-			if p != root && strings.HasPrefix(name, ".") {
+			if path != root && strings.HasPrefix(name, ".") {
 				return fs.SkipDir
 			}
 			return nil
@@ -58,25 +71,28 @@ func Vault(root string, ix *index.Index) (Result, error) {
 			res.Warnings = append(res.Warnings, err.Error())
 			return nil
 		}
-		rel := relPath(root, p)
-		seen[rel] = true
+		rel := relPath(root, path)
+		if seen != nil {
+			seen[rel] = true
+		}
 		if old := ix.Get(rel); old != nil && old.Size == info.Size() && old.MTime.Equal(info.ModTime()) {
 			res.Unchanged++
 			return nil
 		}
-		jobs = append(jobs, job{rel, info})
+		p.submit(newJob(rel, info))
+		res.Updated++
 		return nil
 	})
+	res.Warnings = append(res.Warnings, p.wait()...)
 	if err != nil {
 		return res, err
 	}
 
-	res.Warnings = append(res.Warnings, parseAll(root, jobs, ix)...)
-	res.Updated = len(jobs)
-
-	for _, n := range ix.All() {
-		if !seen[n.Path] && ix.Remove(n.Path) {
-			res.Removed++
+	if seen != nil {
+		for _, n := range ix.All() {
+			if !seen[n.Path] && ix.Remove(n.Path) {
+				res.Removed++
+			}
 		}
 	}
 	return res, nil
@@ -86,7 +102,7 @@ func Vault(root string, ix *index.Index) (Result, error) {
 // written. Missing files are removed from the index.
 func Paths(root string, rels []string, ix *index.Index) Result {
 	var res Result
-	var jobs []job
+	p := startPool(root, ix)
 	for _, rel := range rels {
 		rel = filepath.ToSlash(filepath.Clean(rel))
 		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
@@ -100,54 +116,63 @@ func Paths(root string, rels []string, ix *index.Index) Result {
 			res.Unchanged++
 			continue
 		}
-		jobs = append(jobs, job{rel, info})
+		p.submit(newJob(rel, info))
+		res.Updated++
 	}
-	res.Warnings = parseAll(root, jobs, ix)
-	res.Updated = len(jobs)
+	res.Warnings = p.wait()
 	return res
 }
 
-// parseAll reads and parses jobs on a pool bounded by GOMAXPROCS, so memory
-// held at once is at most GOMAXPROCS file bodies (§V.5).
-func parseAll(root string, jobs []job, ix *index.Index) []string {
-	var (
-		mu    sync.Mutex
-		warns []string
-		wg    sync.WaitGroup
-	)
-	ch := make(chan job)
-	workers := runtime.GOMAXPROCS(0)
-	for range workers {
-		wg.Add(1)
+// maxWorkers caps parse parallelism. Past 4 workers the scan gets little
+// faster (10k notes: 0.49 s → 0.31 s at 12) but each worker's in-flight
+// garbage raises peak RSS (§V.5).
+const maxWorkers = 4
+
+type pool struct {
+	ch    chan job
+	wg    sync.WaitGroup
+	mu    sync.Mutex
+	warns []string
+}
+
+func startPool(root string, ix *index.Index) *pool {
+	p := &pool{ch: make(chan job)}
+	for range min(runtime.GOMAXPROCS(0), maxWorkers) {
+		p.wg.Add(1)
 		go func() {
-			defer wg.Done()
-			for j := range ch {
+			defer p.wg.Done()
+			for j := range p.ch {
 				b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(j.rel)))
 				if err != nil {
-					mu.Lock()
-					warns = append(warns, err.Error())
-					mu.Unlock()
+					p.warn(err.Error())
 					continue
 				}
 				n, w := note.Parse(j.rel, b)
-				n.Size = j.info.Size()
-				n.MTime = j.info.ModTime()
-				n.CTime = birthTime(j.info)
+				n.Size, n.MTime, n.CTime = j.size, j.mtime, j.ctime
 				ix.Put(n)
-				if len(w) > 0 {
-					mu.Lock()
-					warns = append(warns, w...)
-					mu.Unlock()
-				}
+				p.warn(w...)
 			}
 		}()
 	}
-	for _, j := range jobs {
-		ch <- j
+	return p
+}
+
+func (p *pool) submit(j job) { p.ch <- j }
+
+func (p *pool) warn(ws ...string) {
+	if len(ws) == 0 {
+		return
 	}
-	close(ch)
-	wg.Wait()
-	return warns
+	p.mu.Lock()
+	p.warns = append(p.warns, ws...)
+	p.mu.Unlock()
+}
+
+// wait drains the pool and returns the workers' warnings.
+func (p *pool) wait() []string {
+	close(p.ch)
+	p.wg.Wait()
+	return p.warns
 }
 
 func relPath(root, p string) string {
