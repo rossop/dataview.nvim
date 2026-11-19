@@ -34,6 +34,9 @@ local subcommands = {
   log = function()
     require("dataview").log()
   end,
+  install = function()
+    require("dataview").install()
+  end,
 }
 
 -- :Dataview [sub] [query…]; float and pick take an optional ad-hoc query.
@@ -89,3 +92,14 @@ vim.api.nvim_create_autocmd("VimLeavePre", {
     end
   end,
 })
+
+-- When lazy-loaded (e.g. lazy.nvim ft = "markdown") the first note's
+-- BufWinEnter has already fired; render notes that are already on screen.
+vim.schedule(function()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    local buf = vim.api.nvim_win_get_buf(win)
+    if vim.api.nvim_buf_get_name(buf):match("%.md$") then
+      require("dataview").on_enter(buf)
+    end
+  end
+end)

@@ -53,9 +53,10 @@ func TestStale(t *testing.T) {
 }
 
 func TestPathUsesXDG(t *testing.T) {
-	t.Setenv("XDG_CACHE_HOME", "/tmp/xdg")
+	xdg := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", xdg)
 	p, err := Path("/some/vault")
-	if err != nil || filepath.Dir(p) != "/tmp/xdg/dataview.nvim" || filepath.Ext(p) != ".gob" {
+	if err != nil || filepath.Dir(p) != filepath.Join(xdg, "dataview.nvim") || filepath.Ext(p) != ".gob" {
 		t.Errorf("Path = %q, %v", p, err)
 	}
 }

@@ -118,4 +118,19 @@ return {
     dv.setup({})
     assert(ok, err)
   end,
+
+  ["lazy-loaded plugin renders the note already open"] = function()
+    local vault = copy_vault({ ["Dashboard.md"] = dashboard })
+    local cmd = {
+      vim.v.progpath, "--headless", "-u", "NONE", "--cmd", "set rtp^=" .. root,
+      vault .. "/Dashboard.md",
+      "+lua vim.g.loaded_dataview = nil; vim.cmd('runtime plugin/dataview.lua')",
+      "+lua assert(vim.wait(5000, function() return #vim.api.nvim_buf_get_extmarks(0, require('dataview.render.inline').ns, 0, -1, {}) > 0 end, 10)); io.stdout:write('rendered'); vim.cmd('qa!')",
+    }
+    -- Neovim loads plugin/ at startup unless --noplugin; simulate a lazy
+    -- load by sourcing it only after the file is open.
+    table.insert(cmd, 5, "--noplugin")
+    local out = vim.system(cmd, { text = true }):wait(15000)
+    eq("rendered", out.stdout, out.stderr)
+  end,
 }
